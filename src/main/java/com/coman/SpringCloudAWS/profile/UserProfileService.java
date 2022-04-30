@@ -30,7 +30,7 @@ public class UserProfileService {
 
     public void uploadUserProfileImage(UUID userProfileId, MultipartFile file) {
 
-        extracted(file);
+        isFileEmpty(file);
 
         isImage(file);
         //3. The user exist in database
@@ -45,9 +45,21 @@ public class UserProfileService {
         String filename = String.format("%s-%s", file.getOriginalFilename(), UUID.randomUUID());
         try {
             fileStore.save(path,filename,Optional.of(metadata),file.getInputStream());
+            user.setUserProfileImageLink(filename);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    byte[] downloadUserProfileImage(UUID userProfileId) {
+        UserProfile user = getUserProfileOrThrow(userProfileId);
+        String path = String.format("%s/%s",
+                BucketName.PROFILE_IMAGE.getBucketName(),
+                user.getUserProfileId());
+
+        return user.getUserProfileImageLink()
+                .map(key -> fileStore.download(path,key))
+                .orElse(new byte[0]);
     }
 
     private Map<String, String> extractMetadata(MultipartFile file) {
@@ -74,9 +86,11 @@ public class UserProfileService {
         }
     }
 
-    private void extracted(MultipartFile file) {
+    private void isFileEmpty(MultipartFile file) {
         if(file.isEmpty()){
             throw new IllegalStateException("Cannot upload empty file [ "+ file.getSize() + "]");
         }
     }
+
+
 }
